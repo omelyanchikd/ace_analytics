@@ -11,9 +11,8 @@ c = conn.cursor()
 
 table_name = 'models_worldresult'
 
-print([record[1] for record in c.execute("PRAGMA TABLE_INFO  ('" + table_name + "')").fetchall()])
-
-
+print([record for record in c.execute(
+    "SELECT field_name, field_human FROM models_modelverbosenames WHERE [table] = 'models_worldresult'").fetchall()])
 
 app = dash.Dash()
 
@@ -29,6 +28,7 @@ app.layout = html.Div([
     html.Div([
 
         html.Div([
+            html.Label('Виберіть Х:'),
             dcc.Dropdown(
                 id='xaxis-table',
                 options=[
@@ -41,87 +41,107 @@ app.layout = html.Div([
             ),
             dcc.Dropdown(
                 id='xaxis-field'
-            ),
-            dcc.RadioItems(
-                id='xaxis-type',
-                options=[{'label': i, 'value': i} for i in ['Linear', 'Log']],
-                value='Linear',
-                labelStyle={'display': 'inline-block'}
             )
         ],
-        style={'width': '48%', 'display': 'inline-block'}),
+            style={'width': '48%', 'display': 'inline-block'}),
 
         html.Div([
+            html.Label('Виберіть Y:'),
             dcc.Dropdown(
-                id='yaxis-column',
-                options=[{'label': i, 'value': i} for i in available_indicators],
-                value='Life expectancy at birth, total (years)'
+                id='yaxis-table',
+                options=[
+                    {'label': 'Світ', 'value': 'models_worldresult'},
+                    {'label': 'Фірми', 'value': 'models_firmresult'},
+                    {'label': 'Ринок товарів', 'value': 'models_goodmarketresult'},
+                    {'label': 'Ринок праці', 'value': 'models_labormarketresult'},
+                ],
+                value='models_worldresult'
             ),
-            dcc.RadioItems(
-                id='yaxis-type',
-                options=[{'label': i, 'value': i} for i in ['Linear', 'Log']],
-                value='Linear',
-                labelStyle={'display': 'inline-block'}
+            dcc.Dropdown(
+                id='yaxis-fields',
+                multi=True
             )
-        ],style={'width': '48%', 'float': 'right', 'display': 'inline-block'})
+        ], style={'width': '48%', 'float': 'right', 'display': 'inline-block'})
     ]),
 
-    dcc.Graph(id='indicator-graphic'),
+    html.Div([
+        html.Label('Виберіть стиль графіку:', ),
+        dcc.RadioItems(
+            id='chart-type',
+            options=[
+                {'label': 'Лінійний графік', 'value': 'lines', 'style' : {'display': 'block'}},
+                {'label': 'Точкова діаграма', 'value': 'markers', 'style' : {'display': 'block'}},
+                {'label': 'Гістограма', 'value': 'bar', 'style' : {'display': 'block'}},
+                {'label': 'Кругова діаграма', 'value': 'pie', 'style' : {'display': 'block'}},
+            ],
+            value='lines'
+        )
+    ],
+        style={'width': '25%', 'float': 'left'}
+    ),
 
-    dcc.Slider(
-        id='year--slider',
-        min=df['Year'].min(),
-        max=df['Year'].max(),
-        value=df['Year'].max(),
-        step=None,
-        marks={str(year): str(year) for year in df['Year'].unique()}
-    )
+    dcc.Graph(id='indicator-graphic', style={'width': '74%', 'float': 'right', 'display': 'inline-block'})
 ])
+
 
 @app.callback(
     dash.dependencies.Output('xaxis-field', 'options'),
     [dash.dependencies.Input('xaxis-table', 'value')]
 )
 def set_xaxis_field_options(selected_x_axis_table):
-    return [{'label': record[1], 'value': record[0]} for record in c.execute("PRAGMA table_info('" + selected_x_axis_table + "')").fetchall()]
+    return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
+                                                                             "FROM models_modelverbosenames "
+                                                                             "WHERE [table] = '" + selected_x_axis_table + "'").fetchall()]
+
+
+@app.callback(
+    dash.dependencies.Output('yaxis-fields', 'options'),
+    [dash.dependencies.Input('yaxis-table', 'value')]
+)
+def set_yaxis_field_options(selected_y_axis_table):
+    return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
+                                                                             "FROM models_modelverbosenames "
+                                                                             "WHERE [table] = '" + selected_y_axis_table + "'").fetchall()]
+
 
 @app.callback(
     dash.dependencies.Output('indicator-graphic', 'figure'),
     [dash.dependencies.Input('xaxis-table', 'value'),
      dash.dependencies.Input('xaxis-field', 'value'),
-     dash.dependencies.Input('yaxis-column', 'value'),
-     dash.dependencies.Input('xaxis-type', 'value'),
-     dash.dependencies.Input('yaxis-type', 'value'),
-     dash.dependencies.Input('year--slider', 'value')])
-def update_graph(xaxis_column_name, yaxis_column_name,
-                 xaxis_type, yaxis_type,
-                 year_value):
-    dff = df[df['Year'] == year_value]
+     dash.dependencies.Input('yaxis-table', 'value'),
+     dash.dependencies.Input('yaxis-fields', 'value'),
+     dash.dependencies.Input('chart-type', 'value')
+     ])
+def update_graph(xaxis_table, xaxis_field,
+                 yaxis_table, yaxis_fields, chart_type):
+    if xaxis_field is None:
+        xaxis_field = 'step'
+    if yaxis_fields is None:
+        yaxis_fields = ['step']
+    df_x = pd.read_sql('SELECT ' + xaxis_field + ' FROM ' + xaxis_table, conn)
+    df_y = pd.read_sql('SELECT ' + ','.join(yaxis_fields) + ' FROM ' + yaxis_table, conn)
+
+    plot = [go.Scatter(
+        x=df_x[xaxis_field],
+        y=df_y[yaxis_field],
+        mode=chart_type,
+        name=yaxis_field,
+        marker={
+            'size': 15,
+            'opacity': 0.5,
+            'line': {'width': 0.5, 'color': 'white'}
+        }
+    ) for yaxis_field in yaxis_fields]
+
+    layout = dict(title='Styled Scatter',
+                  yaxis=dict(zeroline=False),
+                  xaxis=dict(zeroline=False)
+                  )
 
     return {
-        'data': [go.Scatter(
-            x=dff[dff['Indicator Name'] == xaxis_column_name]['Value'],
-            y=dff[dff['Indicator Name'] == yaxis_column_name]['Value'],
-            text=dff[dff['Indicator Name'] == yaxis_column_name]['Country Name'],
-            mode='markers',
-            marker={
-                'size': 15,
-                'opacity': 0.5,
-                'line': {'width': 0.5, 'color': 'white'}
-            }
-        )],
-        'layout': go.Layout(
-            xaxis={
-                'title': xaxis_column_name,
-                'type': 'linear' if xaxis_type == 'Linear' else 'log'
-            },
-            yaxis={
-                'title': yaxis_column_name,
-                'type': 'linear' if yaxis_type == 'Linear' else 'log'
-            },
-            margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
-            hovermode='closest'
-        )
+        'data': plot,
+        'layout': layout
     }
+
 
 app.run_server()
