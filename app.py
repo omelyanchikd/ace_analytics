@@ -172,8 +172,7 @@ def set_yaxis_field_options(selected_table):
 
 def set_split_options(selected_table):
     return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
-                                                                             "FROM models_modelverbosenames "
-                                                                             "WHERE [table] = '" + selected_table + "'").fetchall()]
+            "FROM models_modelverbosenames WHERE [type] = 'categorical' AND [table] = '" + selected_table + "'").fetchall()]
 
 @app.callback(
     dash.dependencies.Output('filter-variable1', 'options'),
@@ -182,8 +181,7 @@ def set_split_options(selected_table):
 
 def set_filter_variable1_options(selected_table):
     return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
-                                                                             "FROM models_modelverbosenames "
-                                                                             "WHERE [table] = '" + selected_table + "'").fetchall()]
+            "FROM models_modelverbosenames WHERE [type] = 'categorical' AND [table] = '" + selected_table + "'").fetchall()]
 
 @app.callback(
     dash.dependencies.Output('filter-values1', 'options'),
@@ -202,8 +200,7 @@ def set_filter_values1_options(filter_variable, selected_table):
 
 def set_filter_variable2_options(selected_table):
     return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
-                                                                             "FROM models_modelverbosenames "
-                                                                             "WHERE [table] = '" + selected_table + "'").fetchall()]
+            "FROM models_modelverbosenames WHERE [type] = 'categorical' AND [table] = '" + selected_table + "'").fetchall()]
 
 @app.callback(
     dash.dependencies.Output('filter-values2', 'options'),
@@ -221,8 +218,7 @@ def set_filter_values2_options(filter_variable_2, selected_table_2):
 )
 def set_filter_variable3_options(selected_table):
     return [{'label': record[1], 'value': record[0]} for record in c.execute("SELECT field_name, field_human "
-                                                                             "FROM models_modelverbosenames "
-                                                                             "WHERE [table] = '" + selected_table + "'").fetchall()]
+            "FROM models_modelverbosenames WHERE [type] = 'categorical' AND [table] = '" + selected_table + "'").fetchall()]
 
 @app.callback(
     dash.dependencies.Output('filter-values3', 'options'),
